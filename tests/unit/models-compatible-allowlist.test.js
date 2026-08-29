@@ -37,7 +37,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
     global.fetch = vi.fn();
   });
 
-  it("TEST A: OpenAI-compatible provider with explicit custom model exposes only that model, ignoring upstream /models", async () => {
+  it("TEST A: OpenAI-compatible provider with explicit custom model stored under providerId exposes only that model, ignoring upstream /models", async () => {
     getProviderConnections.mockResolvedValue([
       {
         id: "conn-stepfun",
@@ -51,11 +51,12 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
       },
     ]);
 
+    // Dashboard persists with providerStorageAlias = isCompatible ? providerId : providerAlias
     getCustomModels.mockResolvedValue([
       {
         id: "step-3.7-flash",
         name: "Step 3.7 Flash",
-        providerAlias: "stepplan",
+        providerAlias: "openai-compatible-stepfun",
         type: "llm",
       },
     ]);
@@ -109,7 +110,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("TEST C: Anthropic-compatible provider exposes only explicitly configured custom models", async () => {
+  it("TEST C: Anthropic-compatible provider exposes only explicitly configured custom models stored under providerId", async () => {
     getProviderConnections.mockResolvedValue([
       {
         id: "conn-anthropic-custom",
@@ -126,7 +127,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
     getCustomModels.mockResolvedValue([
       {
         id: "MiniMax-Text-01",
-        providerAlias: "minimax-custom",
+        providerAlias: "anthropic-compatible-minimax",
         type: "llm",
       },
     ]);
@@ -145,7 +146,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("TEST D: Legacy model aliases displayed as Available Models remain exposed", async () => {
+  it("TEST D: Legacy model aliases using providerId target remain exposed under output prefix", async () => {
     getProviderConnections.mockResolvedValue([
       {
         id: "conn-legacy",
@@ -161,13 +162,42 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
 
     getCustomModels.mockResolvedValue([]);
     getModelAliases.mockResolvedValue({
-      "my-alias": "legacyprov/legacy-model-v1",
+      "my-alias": "openai-compatible-legacy/legacy-model-v1",
     });
 
     const models = await buildModelsList(["llm"]);
     const modelIds = models.map((m) => m.id);
 
     expect(modelIds).toEqual(["legacyprov/legacy-model-v1"]);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("TEST D2 (Backwards compatibility): Older custom models stored under display prefix remain supported", async () => {
+    getProviderConnections.mockResolvedValue([
+      {
+        id: "conn-prefix-storage",
+        provider: "openai-compatible-old",
+        apiKey: "sk-test",
+        isActive: true,
+        providerSpecificData: {
+          baseUrl: "https://api.old.com/v1",
+          prefix: "oldprefix",
+        },
+      },
+    ]);
+
+    getCustomModels.mockResolvedValue([
+      {
+        id: "old-custom-model",
+        providerAlias: "oldprefix",
+        type: "llm",
+      },
+    ]);
+
+    const models = await buildModelsList(["llm"]);
+    const modelIds = models.map((m) => m.id);
+
+    expect(modelIds).toEqual(["oldprefix/old-custom-model"]);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -211,7 +241,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
     );
   });
 
-  it("TEST F: Old connection enabledModels do NOT leak unrepresented models for custom compatible providers", async () => {
+  it("TEST F: Old connection enabledModels do NOT leak unrepresented models for custom compatible providers with providerId storage", async () => {
     getProviderConnections.mockResolvedValue([
       {
         id: "conn-stepfun",
@@ -230,7 +260,7 @@ describe("buildModelsList - Custom Compatible Provider Allowlist", () => {
       {
         id: "step-3.7-flash",
         name: "Step 3.7 Flash",
-        providerAlias: "stepplan",
+        providerAlias: "openai-compatible-stepfun",
         type: "llm",
       },
     ]);
