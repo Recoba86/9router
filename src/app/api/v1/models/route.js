@@ -365,19 +365,17 @@ export async function buildModelsList(kindFilter, options = {}) {
       let liveModelKindById = new Map();
       let liveCapabilitiesById = new Map();
 
-      let rawModelIds = hasExplicitEnabledModels
-        ? Array.from(
-            new Set(
-              enabledModels.filter(
-                (modelId) => typeof modelId === "string" && modelId.trim() !== "",
-              ),
-            ),
-          )
-        : providerModels.map((model) => model.id);
-
-      if (isCompatibleProvider && rawModelIds.length === 0 && !skipDynamicFetch) {
-        rawModelIds = await fetchCompatibleModelIds(conn);
-      }
+      let rawModelIds = isCompatibleProvider
+        ? []
+        : (hasExplicitEnabledModels
+            ? Array.from(
+                new Set(
+                  enabledModels.filter(
+                    (modelId) => typeof modelId === "string" && modelId.trim() !== "",
+                  ),
+                ),
+              )
+            : providerModels.map((model) => model.id));
 
       // Config-driven live catalog override (e.g. Kiro returns dynamic
       // -thinking/-agentic variants per account). On failure, fall back to
